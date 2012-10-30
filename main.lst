@@ -1,0 +1,538 @@
+MPASM  5.06                          MAIN.ASM   3-8-2007  11:05:14         PAGE  1
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00001 ; Copyright (c) 2005 - 2006 Charles Rincheval - http://www.digitalspirit.org
+; All rights reserved.
+;
+; 
+                            This source code is free software; you can redistribute it and/or modify
+; it under the terms of
+                      00002 
+                      00003 
+                      00004 
+                      00005         ; +------------------------+
+                      00006         ; | Quelle bête utilisée ? |
+                      00007         ; +------------------------+
+Warning[215]: Processor superseded by command line.  Verify processor symbol.
+                      00008         LIST      p=10F206-
+                      00009         #include <p10F206.inc>
+                      00001         LIST
+                      00002 ; P10F206.INC  Standard Header File, Version 1.01    Microchip Technology, Inc.
+                      00134         LIST
+                      00010 
+                      00011         ; +-----------+
+                      00012         ; | La config |
+                      00013         ; +-----------+
+0FFF   0FE7           00014         __CONFIG   _MCLRE_OFF & _CP_ON & _WDT_ON & _IntRC_OSC
+                      00015 
+                      00016 
+                      00017         ; +--------+
+                      00018         ; | Define |
+                      00019         ; +--------+
+                      00020 ;       #DEFINE OUTPUT  GPIO, 2                 ; the Output(exit) of the data 
+                      00021 ;       #DEFINE RAM_START H '07' 
+                      00022 
+                      00023         #define DBUG0           GPIO, 0
+                      00024         #define DBUG1           GPIO, 1
+                      00025 
+                      00026         #define PIN_SERIAL      GPIO, 2
+                      00027         #define INPUT           GPIO, 3
+                      00028 
+                      00029 
+                      00030         ; +-------+
+                      00031         ; | Macro |
+                      00032         ; +-------+
+                      00033 TEMPO   MACRO
+                      00034 ;               movlw   .15
+                      00035                 movlw   .14
+                      00036                 movwf   tempo
+                      00037                 decfsz  tempo, F
+                      00038                 goto    $ - 1
+                      00039                 ENDM
+                      00040 
+                      00041 BIG_TEMPO       MACRO
+                      00042                 movlw   .254
+                      00043                 movwf   tempo
+                      00044                 decfsz  tempo, F
+                      00045                 goto    $ - 1
+                      00046                 ENDM
+                      00047 
+                      00048 
+MPASM  5.06                          MAIN.ASM   3-8-2007  11:05:14         PAGE  2
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00049         ; +-------------------+
+                      00050         ; | Zone de variables |
+                      00051         ; +-------------------+
+                      00052         CBLOCK          0x08
+  00000008            00053                 cmpt : 1                ; Compteur de boucle
+  00000009            00054                 bcl : 1                 ; Compteur de boucle
+  0000000A            00055                 bclp :1                 ; Compteur de boucle
+                      00056 
+  0000000B            00057                 tmp : 1                 ; Variable tempo
+                      00058 
+  0000000C            00059                 tempo : 1               ; Macro
+                      00060 
+  0000000D            00061                 value : 1               ; Valeur courante reçue
+                      00062         
+  0000000E            00063                 tab0 : 1                ; Tableau de valeurs
+  0000000F            00064                 tab1 : 1
+  00000010            00065                 tab2 : 1
+  00000011            00066                 tab3 : 1
+  00000012            00067                 tab4 : 1
+  00000013            00068                 tab5 : 1
+                      00069 ;               tab6 : 1
+                      00070 ;               tab7 : 1
+                      00071 
+  00000014            00072                 tmpt0 : 1               ; Pour le "swappage"
+  00000015            00073                 tmpt2 : 1
+                      00074         ENDC
+                      00075 
+                      00076 ; Start
+0000                  00077         org             0x00
+0000   0025           00078         movwf   OSCCAL
+                      00079 
+0001   0405           00080         bcf             OSCCAL, FOSC4
+                      00081 
+0002   0CC0           00082         movlw   b'11000000'
+0003   0002           00083         option
+                      00084 
+0004   0467           00085         bcf             CMCON0, CMPON
+                      00086 
+0005   0004           00087         clrwdt
+                      00088 
+0006   0C08           00089         movlw   b'00001000'
+0007   0006           00090         tris    GPIO
+                      00091 
+0008   0446           00092         bcf             PIN_SERIAL
+0009   0406           00093         bcf             DBUG0
+000A   0426           00094         bcf             DBUG1
+                      00095 
+000B   006D           00096         clrf    value
+000C   0939           00097         call    init_tab
+                      00098 
+                      00099 ;       movlw   tab
+                      00100 ;       movwf   FSR
+                      00101 ;       movlw   0xFF
+MPASM  5.06                          MAIN.ASM   3-8-2007  11:05:14         PAGE  3
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00102 ;       movwf   value
+                      00103 ;       goto    _main_save
+                      00104 
+                      00105 ;paf
+                      00106 ;       bcf             PIN_SERIAL
+                      00107 ;       call    sync
+                      00108 ;       bsf             PIN_SERIAL
+                      00109 ;       goto    paf
+                      00110 
+                      00111 ; Boucle principale
+000D                  00112 main
+                      00113 
+                      00114 ;       movlw   0x80
+                      00115 ;       movwf   tab0
+                      00116 ;
+                      00117 ;       movlw   0x81
+                      00118 ;       movwf   tab1
+                      00119 ;
+                      00120 ;       movlw   0x82
+                      00121 ;       movwf   tab2
+                      00122 ;
+                      00123 ;       movlw   0x83
+                      00124 ;       movwf   tab3
+                      00125 ;
+                      00126 ;       movlw   0x84
+                      00127 ;       movwf   tab4
+                      00128 ;
+                      00129 ;       movlw   0x85
+                      00130 ;       movwf   tab5
+                      00131 ;
+                      00132 ;       movlw   0xFF
+                      00133 ;       call    rs232Send
+                      00134 ;
+                      00135 ;       TEMPO
+                      00136 ;
+                      00137 ;       call    send_tab
+                      00138 ;
+                      00139 ;       goto    main
+                      00140 
+                      00141 
+000D   0C0E           00142         movlw   tab0
+000E   0024           00143         movwf   FSR
+                      00144 
+000F   0C06           00145         movlw   .6
+0010   002A           00146         movwf   bclp
+                      00147 
+0011                  00148 _main_wait
+                      00149 
+0011   0004           00150         clrwdt
+                      00151 
+                      00152         ; On attend une impulsion sur GPIO
+0012   0766           00153         btfss   INPUT
+0013   0A11           00154         goto    _main_wait
+MPASM  5.06                          MAIN.ASM   3-8-2007  11:05:14         PAGE  4
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00155 
+                      00156         ; On est prêt à en recevoir 6
+0014                  00157 _measure_bcl
+                      00158 
+                      00159         ; Tant que l'impulsion est là, on compte
+0014                  00160 _measure_next
+Message[305]: Using default destination of 1 (file).
+0014   02AD           00161         incf    value
+                      00162 
+0015   0643           00163         btfsc   STATUS, Z
+0016   0A1A           00164         goto    _main_0
+                      00165 
+0017   0766           00166         btfss   INPUT
+0018   0A1C           00167         goto    _main_save
+0019   0A14           00168         goto    _measure_next
+                      00169 
+001A                  00170 _main_0
+001A   0CFE           00171         movlw   0xFE
+001B   002D           00172         movwf   value
+                      00173 
+001C                  00174 _main_save
+                      00175 
+001C   020D           00176         movf    value, W
+001D   0020           00177         movwf   INDF
+                      00178 
+                      00179         ; La valeur ne peut être égale à 0xFF
+001E   020D           00180         movf    value, W
+001F   026D           00181         comf    value, F
+0020   0643           00182         btfsc   STATUS, Z
+Message[305]: Using default destination of 1 (file).
+0021   00E0           00183         decf    INDF
+                      00184 
+Message[305]: Using default destination of 1 (file).
+0022   02A4           00185         incf    FSR
+                      00186         
+0023   006D           00187         clrf    value
+                      00188 
+0024   02EA           00189         decfsz  bclp, F
+0025   0A11           00190         goto    _main_wait
+                      00191 
+                      00192 ; C'est fini, on envoie la trame !
+0026                  00193 _main_end
+0026   0CFF           00194         movlw   0xFF
+0027   0962           00195         call    rs232Send       ; 0xFF en premier
+                      00196 
+                      00197         TEMPO
+                          M ;               movlw   .15
+0028   0C0E               M                 movlw   .14
+0029   002C               M                 movwf   tempo
+002A   02EC               M                 decfsz  tempo, F
+002B   0A2A               M                 goto    $ - 1
+                      00198 
+002C   0943           00199         call    swap_tab
+MPASM  5.06                          MAIN.ASM   3-8-2007  11:05:14         PAGE  5
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00200 
+002D   0950           00201         call    send_tab        ; Suivi du tableau
+                      00202 
+002E   0930           00203         call    sync            ; On synchronises
+                      00204 
+002F   0A0D           00205         goto    main
+                      00206 
+                      00207 
+                      00208 ; On sort d'ici une fois synchronisé
+0030                  00209 sync
+                      00210         ; On attend un niveau haut ...
+                      00211         ; ... qui dur plus de 10ms
+0030                  00212 _sync_wait
+0030   0CFF           00213         movlw   .255
+0031   0029           00214         movwf   bcl
+0032                  00215 _sync_wait_bcl
+0032   0766           00216         btfss   INPUT
+0033   0A30           00217         goto    _sync_wait
+0034   02E9           00218         decfsz  bcl, F
+0035   0A32           00219         goto    _sync_wait_bcl
+                      00220 
+                      00221         ; Et maintenant, faut que ça repasse ...
+                      00222         ; ... à 0
+0036                  00223 _sync_wait_next
+0036   0666           00224         btfsc   INPUT
+0037   0A36           00225         goto    _sync_wait_next
+0038   0801           00226         retlw   .1
+                      00227 
+                      00228 
+                      00229 ; Initialisation du tableau
+0039                  00230 init_tab
+0039   0C0E           00231         movlw   tab0
+003A   0024           00232         movwf   FSR
+                      00233 
+003B   0C08           00234         movlw   .8
+003C   0029           00235         movwf   bcl
+003D   0C80           00236         movlw   0x80
+003E                  00237 _init_tab_bcl
+003E   0020           00238         movwf   INDF
+Message[305]: Using default destination of 1 (file).
+003F   02A4           00239         incf    FSR
+0040   02E9           00240         decfsz  bcl, F
+0041   0A3E           00241         goto    _init_tab_bcl
+                      00242 
+0042   0801           00243         retlw   .1
+                      00244 
+                      00245 
+                      00246 ; Echange les valeurs dans le tableau
+0043                  00247 swap_tab
+                      00248 
+                      00249 ;       tab0 -> tab2
+                      00250 ;       tab2 -> tab3
+                      00251 ;       tab3 -> tab0
+MPASM  5.06                          MAIN.ASM   3-8-2007  11:05:14         PAGE  6
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00252 
+                      00253 ;       tab4 -> tab5 (Add)
+                      00254 
+0043   020E           00255         movf    tab0, W
+0044   0034           00256         movwf   tmpt0
+                      00257 
+0045   0210           00258         movf    tab2, W
+0046   0035           00259         movwf   tmpt2
+                      00260 
+                      00261 
+0047   020E           00262         movf    tab0, W
+0048   0030           00263         movwf   tab2
+                      00264 
+0049   0211           00265         movf    tab3, W
+004A   002E           00266         movwf   tab0
+                      00267 
+004B   0215           00268         movf    tmpt2, W
+004C   0031           00269         movwf   tab3
+                      00270 
+004D   0212           00271         movf    tab4, W         ;ça sert à rien ça ??!!
+004E   0033           00272         movwf   tab5
+                      00273 
+004F   0801           00274         retlw   .1
+                      00275 
+                      00276 
+                      00277 ; On envoie le contenu du tableau
+0050                  00278 send_tab
+0050   0C0E           00279         movlw   tab0
+0051   0024           00280         movwf   FSR
+                      00281 
+0052   0C04           00282         movlw   .4
+0053   0029           00283         movwf   bcl
+0054                  00284 _send_tab_bcl
+0054   0200           00285         movf    INDF, W
+0055   0962           00286         call    rs232Send
+                      00287 
+                      00288         TEMPO
+                          M ;               movlw   .15
+0056   0C0E               M                 movlw   .14
+0057   002C               M                 movwf   tempo
+0058   02EC               M                 decfsz  tempo, F
+0059   0A58               M                 goto    $ - 1
+                      00289         TEMPO
+                          M ;               movlw   .15
+005A   0C0E               M                 movlw   .14
+005B   002C               M                 movwf   tempo
+005C   02EC               M                 decfsz  tempo, F
+005D   0A5C               M                 goto    $ - 1
+                      00290 
+Message[305]: Using default destination of 1 (file).
+005E   02A4           00291         incf    FSR
+005F   02E9           00292         decfsz  bcl, F
+0060   0A54           00293         goto    _send_tab_bcl
+MPASM  5.06                          MAIN.ASM   3-8-2007  11:05:14         PAGE  7
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00294 
+0061   0801           00295         retlw   .1
+                      00296 
+                      00297 
+                      00298 ; Envoie le contenu de W
+0062                  00299 rs232Send:
+                      00300 
+0062   002B           00301         movwf   tmp
+Message[305]: Using default destination of 1 (file).
+0063   026B           00302         comf    tmp
+                      00303 
+0064   0546           00304         bsf             PIN_SERIAL              ; Envoie du bit de start
+                      00305         TEMPO
+                          M ;               movlw   .15
+0065   0C0E               M                 movlw   .14
+0066   002C               M                 movwf   tempo
+0067   02EC               M                 decfsz  tempo, F
+0068   0A67               M                 goto    $ - 1
+                      00306 
+0069   0C08           00307         movlw   .8
+006A   0028           00308         movwf   cmpt
+006B                  00309 _rs232Send_bcl:
+                      00310 
+006B   032B           00311         rrf             tmp, f
+                      00312 
+006C   0603           00313         btfsc   STATUS, C
+006D   0546           00314         bsf             PIN_SERIAL
+006E   0703           00315         btfss   STATUS, C
+006F   0446           00316         bcf             PIN_SERIAL
+                      00317         TEMPO
+                          M ;               movlw   .15
+0070   0C0E               M                 movlw   .14
+0071   002C               M                 movwf   tempo
+0072   02EC               M                 decfsz  tempo, F
+0073   0A72               M                 goto    $ - 1
+                      00318 
+0074   02E8           00319         decfsz  cmpt, F
+0075   0A6B           00320         goto    _rs232Send_bcl
+                      00321 
+0076   0446           00322         bcf             PIN_SERIAL
+                      00323 
+0077   0801           00324         retlw   .1
+                      00325 
+                      00326 
+                      00327 
+                      00328         END
+MPASM  5.06                          MAIN.ASM   3-8-2007  11:05:14         PAGE  8
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+BIG_TEMPO                         
+C                                 00000000
+CAL0                              00000001
+CAL1                              00000002
+CAL2                              00000003
+CAL3                              00000004
+CAL4                              00000005
+CAL5                              00000006
+CAL6                              00000007
+CMCON0                            00000007
+CMPON                             00000003
+CMPOUT                            00000007
+CNREF                             00000002
+CPREF                             00000001
+CWUF                              00000006
+DBUG0                             GPIO, 0
+DBUG1                             GPIO, 1
+DC                                00000001
+F                                 00000001
+FOSC4                             00000000
+FSR                               00000004
+GP0                               00000000
+GP1                               00000001
+GP2                               00000002
+GP3                               00000003
+GPIO                              00000006
+GPWUF                             00000007
+INDF                              00000000
+INPUT                             GPIO, 3
+NOT_CMPT0CS                       00000004
+NOT_COUTEN                        00000006
+NOT_CWU                           00000000
+NOT_GPPU                          00000006
+NOT_GPWU                          00000007
+NOT_PD                            00000003
+NOT_TO                            00000004
+OSCCAL                            00000005
+PCL                               00000002
+PIN_SERIAL                        GPIO, 2
+POL                               00000005
+PS0                               00000000
+PS1                               00000001
+PS2                               00000002
+PSA                               00000003
+STATUS                            00000003
+T0CS                              00000005
+T0SE                              00000004
+TEMPO                             
+TMR0                              00000001
+W                                 00000000
+Z                                 00000002
+_CP_OFF                           00000FFF
+_CP_ON                            00000FF7
+MPASM  5.06                          MAIN.ASM   3-8-2007  11:05:14         PAGE  9
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+_IntRC_OSC                        00000FFF
+_MCLRE_OFF                        00000FEF
+_MCLRE_ON                         00000FFF
+_WDT_OFF                          00000FFB
+_WDT_ON                           00000FFF
+__10F206                          00000001
+_init_tab_bcl                     0000003E
+_main_0                           0000001A
+_main_end                         00000026
+_main_save                        0000001C
+_main_wait                        00000011
+_measure_bcl                      00000014
+_measure_next                     00000014
+_rs232Send_bcl                    0000006B
+_send_tab_bcl                     00000054
+_sync_wait                        00000030
+_sync_wait_bcl                    00000032
+_sync_wait_next                   00000036
+bcl                               00000009
+bclp                              0000000A
+cmpt                              00000008
+init_tab                          00000039
+main                              0000000D
+rs232Send                         00000062
+send_tab                          00000050
+swap_tab                          00000043
+sync                              00000030
+tab0                              0000000E
+tab1                              0000000F
+tab2                              00000010
+tab3                              00000011
+tab4                              00000012
+tab5                              00000013
+tempo                             0000000C
+tmp                               0000000B
+tmpt0                             00000014
+tmpt2                             00000015
+value                             0000000D
+
+
+MEMORY USAGE MAP ('X' = Used,  '-' = Unused)
+
+0000 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0040 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXX--------
+0FC0 : ---------------- ---------------- ---------------- ---------------X
+
+All other memory blocks unused.
+
+Program Memory Words Used:   120
+Program Memory Words Free:   392
+
+MPASM  5.06                          MAIN.ASM   3-8-2007  11:05:14         PAGE 10
+
+
+
+
+
+
+Errors   :     0
+Warnings :     1 reported,     0 suppressed
+Messages :     6 reported,     0 suppressed
+
+

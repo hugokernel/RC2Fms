@@ -1,0 +1,59 @@
+; Trame envoyé par la télécommande
+;
+; Mode 1
+;                 -----       -----
+;                /     \     /     \
+; Gouverne de - |   o   |   |   o   | - Ailerons
+;  direction     \     /     \     /
+; (anticouple)    -----       -----
+;                   |           |
+;               Profondeur     Gaz
+;
+; +--+--+--+--+--+--+
+; |01|02|03|04|05|06|
+; +--+--+--+--+--+--+
+; 01 - (06)	Ailerons
+; 02 - (01, 06)	Gouverne de profondeur
+; 03 - (01)	Gaz
+; 04 - 		Gourverne de direction (anticouple)
+; 05 -
+; 06 -
+;
+;
+; Mode 2
+;                 -----       -----
+;                /     \     /     \
+; Gouverne de - |   o   |   |   o   | - Ailerons
+;  direction     \     /     \     /
+;                 -----       -----
+;                   |           |
+;                  Pas      Profondeur
+;
+; +--+--+--+--+--+--+--+--+
+; |01|02|03|04|05|06|07|08|
+; +--+--+--+--+--+--+--+--+
+; 01 - (06)	Ailerons
+; 02 - ?
+; 03 - ?
+; 04 - 		Gourverne de direction (anticouple)
+; 05 -
+; 06 -
+;
+
+
+; Trame demandé par FMS :
+; +----+--+--+--+--+--+--+--+--+
+; |0xFF|01|02|03|04|05|06|07|08|
+; +----+--+--+--+--+--+--+--+--+
+; 01 - Gouverne de direction
+; 02 - Gouverne de profondeur
+; 03 - Aileron
+; 04 - Gaz
+; 05 - Anti-couple
+; 06 - Cyclique Avant-Arrière
+; 07 - Cyclique Droite-Gauche
+; 08 - Pas
+
+
+
+
